@@ -9,7 +9,7 @@ AVALANCHE_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd .. && pwd ) # Direct
 
 # Set the PATHS
 GOPATH="$(go env GOPATH)"
-coreth_path="$GOPATH/pkg/mod/github.com/ava-labs/coreth@$coreth_version"
+coreth_path="$GOPATH/pkg/mod/github.com/!enlighten-!fund/coreth@v0.8.6-0.20220311063403-b53ea7b185eb"
 
 # Where AvalancheGo binary goes
 build_dir="$AVALANCHE_PATH/build"
