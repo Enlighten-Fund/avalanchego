@@ -127,3 +127,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/ava-labs/coreth v0.9.0-rc.6 => github.com/Enlighten-Fund/coreth v0.9.0-rc.6.0.20220906065410-f93f7381cd23
