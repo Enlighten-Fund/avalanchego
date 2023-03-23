@@ -4,6 +4,7 @@
 package dynamicip
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -11,15 +12,20 @@ import (
 	"strings"
 )
 
-var _ Resolver = &ifConfigResolver{}
+var _ Resolver = (*ifConfigResolver)(nil)
 
 // ifConfigResolver resolves our public IP using ifconfig's format.
 type ifConfigResolver struct {
 	url string
 }
 
-func (r *ifConfigResolver) Resolve() (net.IP, error) {
-	resp, err := http.Get(r.url)
+func (r *ifConfigResolver) Resolve(ctx context.Context) (net.IP, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", r.url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

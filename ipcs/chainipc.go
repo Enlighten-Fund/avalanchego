@@ -9,6 +9,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"golang.org/x/exp/maps"
+
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/utils/logging"
@@ -33,23 +35,33 @@ type context struct {
 // ChainIPCs maintains IPCs for a set of chains
 type ChainIPCs struct {
 	context
-	chains                 map[ids.ID]*EventSockets
-	consensusAcceptorGroup snow.AcceptorGroup
-	decisionAcceptorGroup  snow.AcceptorGroup
+	chains              map[ids.ID]*EventSockets
+	blockAcceptorGroup  snow.AcceptorGroup
+	txAcceptorGroup     snow.AcceptorGroup
+	vertexAcceptorGroup snow.AcceptorGroup
 }
 
 // NewChainIPCs creates a new *ChainIPCs that writes consensus and decision
 // events to IPC sockets
-func NewChainIPCs(log logging.Logger, path string, networkID uint32, consensusAcceptorGroup, decisionAcceptorGroup snow.AcceptorGroup, defaultChainIDs []ids.ID) (*ChainIPCs, error) {
+func NewChainIPCs(
+	log logging.Logger,
+	path string,
+	networkID uint32,
+	blockAcceptorGroup snow.AcceptorGroup,
+	txAcceptorGroup snow.AcceptorGroup,
+	vertexAcceptorGroup snow.AcceptorGroup,
+	defaultChainIDs []ids.ID,
+) (*ChainIPCs, error) {
 	cipcs := &ChainIPCs{
 		context: context{
 			log:       log,
 			networkID: networkID,
 			path:      path,
 		},
-		chains:                 make(map[ids.ID]*EventSockets),
-		consensusAcceptorGroup: consensusAcceptorGroup,
-		decisionAcceptorGroup:  decisionAcceptorGroup,
+		chains:              make(map[ids.ID]*EventSockets),
+		blockAcceptorGroup:  blockAcceptorGroup,
+		txAcceptorGroup:     txAcceptorGroup,
+		vertexAcceptorGroup: vertexAcceptorGroup,
 	}
 	for _, chainID := range defaultChainIDs {
 		if _, err := cipcs.Publish(chainID); err != nil {
@@ -68,7 +80,13 @@ func (cipcs *ChainIPCs) Publish(chainID ids.ID) (*EventSockets, error) {
 		return es, nil
 	}
 
-	es, err := newEventSockets(cipcs.context, chainID, cipcs.consensusAcceptorGroup, cipcs.decisionAcceptorGroup)
+	es, err := newEventSockets(
+		cipcs.context,
+		chainID,
+		cipcs.blockAcceptorGroup,
+		cipcs.txAcceptorGroup,
+		cipcs.vertexAcceptorGroup,
+	)
 	if err != nil {
 		cipcs.log.Error("can't create ipcs",
 			zap.Error(err),
@@ -98,13 +116,7 @@ func (cipcs *ChainIPCs) Unpublish(chainID ids.ID) (bool, error) {
 
 // GetPublishedBlockchains returns the chains that are currently being published
 func (cipcs *ChainIPCs) GetPublishedBlockchains() []ids.ID {
-	chainIds := make([]ids.ID, 0, len(cipcs.chains))
-
-	for id := range cipcs.chains {
-		chainIds = append(chainIds, id)
-	}
-
-	return chainIds
+	return maps.Keys(cipcs.chains)
 }
 
 func (cipcs *ChainIPCs) Shutdown() error {

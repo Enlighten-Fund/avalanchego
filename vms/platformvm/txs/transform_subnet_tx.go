@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	_ UnsignedTx = &TransformSubnetTx{}
+	_ UnsignedTx = (*TransformSubnetTx)(nil)
 
 	errCantTransformPrimaryNetwork       = errors.New("cannot transform primary network")
 	errEmptyAssetID                      = errors.New("empty asset ID is not valid")
@@ -92,7 +92,7 @@ type TransformSubnetTx struct {
 	// Restrictions:
 	// - Must be <= [reward.PercentDenominator]
 	MinDelegationFee uint32 `serialize:"true" json:"minDelegationFee"`
-	// MinValidatorStake is the minimum amount of funds required to become a
+	// MinDelegatorStake is the minimum amount of funds required to become a
 	// delegator.
 	// Restrictions:
 	// - Must be > 0

@@ -18,6 +18,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/message"
 	"github.com/ava-labs/avalanchego/network/throttling"
+	"github.com/ava-labs/avalanchego/proto/pb/p2p"
 	"github.com/ava-labs/avalanchego/snow/networking/router"
 	"github.com/ava-labs/avalanchego/snow/networking/tracker"
 	"github.com/ava-labs/avalanchego/snow/validators"
@@ -27,6 +28,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/math/meter"
 	"github.com/ava-labs/avalanchego/utils/resource"
+	"github.com/ava-labs/avalanchego/utils/set"
 	"github.com/ava-labs/avalanchego/version"
 )
 
@@ -45,13 +47,15 @@ type rawTestPeer struct {
 
 func newMessageCreator(t *testing.T) message.Creator {
 	t.Helper()
+
 	mc, err := message.NewCreator(
 		prometheus.NewRegistry(),
-		true,
 		"",
+		true,
 		10*time.Second,
 	)
 	require.NoError(t, err)
+
 	return mc
 }
 
@@ -72,9 +76,6 @@ func makeRawTestPeers(t *testing.T) (*rawTestPeer, *rawTestPeer) {
 
 	mc := newMessageCreator(t)
 
-	pingMessage, err := mc.Ping()
-	require.NoError(err)
-
 	metrics, err := NewMetrics(
 		logging.NoLog{},
 		"",
@@ -82,61 +83,48 @@ func makeRawTestPeers(t *testing.T) (*rawTestPeer, *rawTestPeer) {
 	)
 	require.NoError(err)
 
-	resourceTracker, err := tracker.NewResourceTracker(prometheus.NewRegistry(), resource.NoUsage, meter.ContinuousFactory{}, 10*time.Second)
+	resourceTracker, err := tracker.NewResourceTracker(
+		prometheus.NewRegistry(),
+		resource.NoUsage,
+		meter.ContinuousFactory{},
+		10*time.Second,
+	)
 	require.NoError(err)
+
 	sharedConfig := Config{
 		Metrics:              metrics,
 		MessageCreator:       mc,
 		Log:                  logging.NoLog{},
 		InboundMsgThrottler:  throttling.NewNoInboundThrottler(),
 		VersionCompatibility: version.GetCompatibility(constants.LocalID),
-		MySubnets:            ids.Set{},
+		MySubnets:            set.Set[ids.ID]{},
 		Beacons:              validators.NewSet(),
 		NetworkID:            constants.LocalID,
 		PingFrequency:        constants.DefaultPingFrequency,
 		PongTimeout:          constants.DefaultPingPongTimeout,
 		MaxClockDifference:   time.Minute,
 		ResourceTracker:      resourceTracker,
-		PingMessage:          pingMessage,
 	}
 	peerConfig0 := sharedConfig
 	peerConfig1 := sharedConfig
 
-	peerConfig0.Network = &testNetwork{
-		mc: mc,
+	ip0 := ips.NewDynamicIPPort(net.IPv6loopback, 0)
+	tls0 := tlsCert0.PrivateKey.(crypto.Signer)
+	peerConfig0.IPSigner = NewIPSigner(ip0, tls0)
 
-		networkID: constants.LocalID,
-		ip: ips.IPPort{
-			IP:   net.IPv6loopback,
-			Port: 0,
-		},
-		version: version.CurrentApp,
-		signer:  tlsCert0.PrivateKey.(crypto.Signer),
-		subnets: ids.Set{},
-
-		uptime: 100,
-	}
+	peerConfig0.Network = TestNetwork
 	inboundMsgChan0 := make(chan message.InboundMessage)
-	peerConfig0.Router = router.InboundHandlerFunc(func(msg message.InboundMessage) {
+	peerConfig0.Router = router.InboundHandlerFunc(func(_ context.Context, msg message.InboundMessage) {
 		inboundMsgChan0 <- msg
 	})
 
-	peerConfig1.Network = &testNetwork{
-		mc: mc,
+	ip1 := ips.NewDynamicIPPort(net.IPv6loopback, 1)
+	tls1 := tlsCert1.PrivateKey.(crypto.Signer)
+	peerConfig1.IPSigner = NewIPSigner(ip1, tls1)
 
-		networkID: constants.LocalID,
-		ip: ips.IPPort{
-			IP:   net.IPv6loopback,
-			Port: 1,
-		},
-		version: version.CurrentApp,
-		signer:  tlsCert1.PrivateKey.(crypto.Signer),
-		subnets: ids.Set{},
-
-		uptime: 100,
-	}
+	peerConfig1.Network = TestNetwork
 	inboundMsgChan1 := make(chan message.InboundMessage)
-	peerConfig1.Router = router.InboundHandlerFunc(func(msg message.InboundMessage) {
+	peerConfig1.Router = router.InboundHandlerFunc(func(_ context.Context, msg message.InboundMessage) {
 		inboundMsgChan1 <- msg
 	})
 
@@ -269,14 +257,14 @@ func TestSend(t *testing.T) {
 	peer0, peer1 := makeReadyTestPeers(t)
 	mc := newMessageCreator(t)
 
-	outboundGetMsg, err := mc.Get(ids.Empty, 1, time.Second, ids.Empty)
+	outboundGetMsg, err := mc.Get(ids.Empty, 1, time.Second, ids.Empty, p2p.EngineType_ENGINE_TYPE_SNOWMAN)
 	require.NoError(err)
 
 	sent := peer0.Send(context.Background(), outboundGetMsg)
 	require.True(sent)
 
 	inboundGetMsg := <-peer1.inboundMsgChan
-	require.Equal(message.Get, inboundGetMsg.Op())
+	require.Equal(message.GetOp, inboundGetMsg.Op())
 
 	peer1.StartClose()
 	err = peer0.AwaitClosed(context.Background())

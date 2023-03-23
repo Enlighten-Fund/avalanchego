@@ -4,9 +4,12 @@
 package snowstorm
 
 import (
+	"context"
+
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ava-labs/avalanchego/utils/bag"
 	"github.com/ava-labs/avalanchego/utils/sampler"
 
 	sbcon "github.com/ava-labs/avalanchego/snow/consensus/snowball"
@@ -109,7 +112,7 @@ func (n *Network) AddNode(cg Consensus) error {
 		}
 		txs[newTx.ID()] = newTx
 
-		if err := cg.Add(newTx); err != nil {
+		if err := cg.Add(context.Background(), newTx); err != nil {
 			return err
 		}
 	}
@@ -138,7 +141,7 @@ func (n *Network) Round() error {
 
 	_ = s.Initialize(uint64(len(n.nodes)))
 	indices, _ := s.Sample(n.params.K)
-	sampledColors := ids.Bag{}
+	sampledColors := bag.Bag[ids.ID]{}
 	sampledColors.SetThreshold(n.params.Alpha)
 	for _, index := range indices {
 		peer := n.nodes[int(index)]
@@ -155,7 +158,7 @@ func (n *Network) Round() error {
 		}
 	}
 
-	if _, err := running.RecordPoll(sampledColors); err != nil {
+	if _, err := running.RecordPoll(context.Background(), sampledColors); err != nil {
 		return err
 	}
 

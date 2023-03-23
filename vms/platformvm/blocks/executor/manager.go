@@ -14,7 +14,7 @@ import (
 	"github.com/ava-labs/avalanchego/vms/platformvm/txs/mempool"
 )
 
-var _ Manager = &manager{}
+var _ Manager = (*manager)(nil)
 
 type Manager interface {
 	state.Versions
@@ -31,7 +31,7 @@ func NewManager(
 	metrics metrics.Metrics,
 	s state.State,
 	txExecutorBackend *executor.Backend,
-	recentlyAccepted *window.Window,
+	recentlyAccepted window.Window[ids.ID],
 ) Manager {
 	backend := &backend{
 		Mempool:      mempool,

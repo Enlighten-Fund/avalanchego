@@ -49,7 +49,7 @@ func (m *Memory) NewSharedMemory(chainID ids.ID) SharedMemory {
 // database
 //
 // Invariant: ReleaseSharedDatabase must be called after to free the database
-//            associated with [sharedID]
+// associated with [sharedID]
 func (m *Memory) GetSharedDatabase(db database.Database, sharedID ids.ID) database.Database {
 	lock := m.makeLock(sharedID)
 	lock.Lock()
@@ -59,9 +59,8 @@ func (m *Memory) GetSharedDatabase(db database.Database, sharedID ids.ID) databa
 // ReleaseSharedDatabase unlocks the provided DB
 //
 // Note: ReleaseSharedDatabase must be called only after a corresponding call to
-//       GetSharedDatabase.
-//       If ReleaseSharedDatabase is called without a corresponding one-to-one
-//       call with GetSharedDatabase, it will panic.
+// GetSharedDatabase. If ReleaseSharedDatabase is called without a corresponding
+// one-to-one call with GetSharedDatabase, it will panic.
 func (m *Memory) ReleaseSharedDatabase(sharedID ids.ID) {
 	lock := m.releaseLock(sharedID)
 	lock.Unlock()
@@ -102,7 +101,7 @@ func (m *Memory) releaseLock(sharedID ids.ID) *sync.Mutex {
 }
 
 // sharedID calculates the ID of the shared memory space
-func (m *Memory) sharedID(id1, id2 ids.ID) ids.ID {
+func sharedID(id1, id2 ids.ID) ids.ID {
 	// Swap IDs locally to ensure id1 <= id2.
 	if bytes.Compare(id1[:], id2[:]) == 1 {
 		id1, id2 = id2, id1

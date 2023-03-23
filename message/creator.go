@@ -8,33 +8,38 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-
-	"github.com/ava-labs/avalanchego/utils/constants"
 )
 
-var _ Creator = &creator{}
+var _ Creator = (*creator)(nil)
 
 type Creator interface {
 	OutboundMsgBuilder
 	InboundMsgBuilder
-	InternalMsgBuilder
 }
 
 type creator struct {
 	OutboundMsgBuilder
 	InboundMsgBuilder
-	InternalMsgBuilder
 }
 
-func NewCreator(metrics prometheus.Registerer, compressionEnabled bool, parentNamespace string, maxInboundMessageTimeout time.Duration) (Creator, error) {
+func NewCreator(
+	metrics prometheus.Registerer,
+	parentNamespace string,
+	compressionEnabled bool,
+	maxMessageTimeout time.Duration,
+) (Creator, error) {
 	namespace := fmt.Sprintf("%s_codec", parentNamespace)
-	codec, err := NewCodecWithMemoryPool(namespace, metrics, int64(constants.DefaultMaxMessageSize), maxInboundMessageTimeout)
+	builder, err := newMsgBuilder(
+		namespace,
+		metrics,
+		maxMessageTimeout,
+	)
 	if err != nil {
 		return nil, err
 	}
+
 	return &creator{
-		OutboundMsgBuilder: NewOutboundBuilder(codec, compressionEnabled),
-		InboundMsgBuilder:  NewInboundBuilder(codec),
-		InternalMsgBuilder: NewInternalBuilder(),
+		OutboundMsgBuilder: newOutboundBuilder(compressionEnabled, builder),
+		InboundMsgBuilder:  newInboundBuilder(builder),
 	}, nil
 }

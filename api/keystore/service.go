@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"go.uber.org/zap"
+
 	"github.com/ava-labs/avalanchego/api"
 	"github.com/ava-labs/avalanchego/database/manager"
 	"github.com/ava-labs/avalanchego/database/memdb"
@@ -20,7 +22,9 @@ type service struct {
 }
 
 func (s *service) CreateUser(_ *http.Request, args *api.UserPass, _ *api.EmptyReply) error {
-	s.ks.log.Debug("Keystore: CreateUser called",
+	s.ks.log.Warn("deprecated API called",
+		zap.String("service", "keystore"),
+		zap.String("method", "createUser"),
 		logging.UserString("username", args.Username),
 	)
 
@@ -28,7 +32,9 @@ func (s *service) CreateUser(_ *http.Request, args *api.UserPass, _ *api.EmptyRe
 }
 
 func (s *service) DeleteUser(_ *http.Request, args *api.UserPass, _ *api.EmptyReply) error {
-	s.ks.log.Debug("Keystore: DeleteUser called",
+	s.ks.log.Warn("deprecated API called",
+		zap.String("service", "keystore"),
+		zap.String("method", "deleteUser"),
 		logging.UserString("username", args.Username),
 	)
 
@@ -39,8 +45,11 @@ type ListUsersReply struct {
 	Users []string `json:"users"`
 }
 
-func (s *service) ListUsers(_ *http.Request, args *struct{}, reply *ListUsersReply) error {
-	s.ks.log.Debug("Keystore: ListUsers called")
+func (s *service) ListUsers(_ *http.Request, _ *struct{}, reply *ListUsersReply) error {
+	s.ks.log.Warn("deprecated API called",
+		zap.String("service", "keystore"),
+		zap.String("method", "listUsers"),
+	)
 
 	var err error
 	reply.Users, err = s.ks.ListUsers()
@@ -56,8 +65,10 @@ type ImportUserArgs struct {
 	Encoding formatting.Encoding `json:"encoding"`
 }
 
-func (s *service) ImportUser(r *http.Request, args *ImportUserArgs, _ *api.EmptyReply) error {
-	s.ks.log.Debug("Keystore: ImportUser called",
+func (s *service) ImportUser(_ *http.Request, args *ImportUserArgs, _ *api.EmptyReply) error {
+	s.ks.log.Warn("deprecated API called",
+		zap.String("service", "keystore"),
+		zap.String("method", "importUser"),
 		logging.UserString("username", args.Username),
 	)
 
@@ -85,7 +96,9 @@ type ExportUserReply struct {
 }
 
 func (s *service) ExportUser(_ *http.Request, args *ExportUserArgs, reply *ExportUserReply) error {
-	s.ks.log.Debug("Keystore: ExportUser called",
+	s.ks.log.Warn("deprecated API called",
+		zap.String("service", "keystore"),
+		zap.String("method", "exportUser"),
 		logging.UserString("username", args.Username),
 	)
 

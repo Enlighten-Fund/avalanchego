@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/window"
@@ -16,7 +17,7 @@ import (
 	"github.com/ava-labs/avalanchego/vms/platformvm/state"
 )
 
-var _ blocks.Visitor = &acceptor{}
+var _ blocks.Visitor = (*acceptor)(nil)
 
 // acceptor handles the logic for accepting a block.
 // All errors returned by this struct are fatal and should result in the chain
@@ -24,14 +25,14 @@ var _ blocks.Visitor = &acceptor{}
 type acceptor struct {
 	*backend
 	metrics          metrics.Metrics
-	recentlyAccepted *window.Window
-	bootstrapped     *utils.AtomicBool
+	recentlyAccepted window.Window[ids.ID]
+	bootstrapped     *utils.Atomic[bool]
 }
 
-func (a *acceptor) BlueberryAbortBlock(b *blocks.BlueberryAbortBlock) error {
+func (a *acceptor) BanffAbortBlock(b *blocks.BanffAbortBlock) error {
 	a.ctx.Log.Debug(
 		"accepting block",
-		zap.String("blockType", "blueberry abort"),
+		zap.String("blockType", "banff abort"),
 		zap.Stringer("blkID", b.ID()),
 		zap.Uint64("height", b.Height()),
 		zap.Stringer("parentID", b.Parent()),
@@ -40,10 +41,10 @@ func (a *acceptor) BlueberryAbortBlock(b *blocks.BlueberryAbortBlock) error {
 	return a.abortBlock(b)
 }
 
-func (a *acceptor) BlueberryCommitBlock(b *blocks.BlueberryCommitBlock) error {
+func (a *acceptor) BanffCommitBlock(b *blocks.BanffCommitBlock) error {
 	a.ctx.Log.Debug(
 		"accepting block",
-		zap.String("blockType", "blueberry commit"),
+		zap.String("blockType", "banff commit"),
 		zap.Stringer("blkID", b.ID()),
 		zap.Uint64("height", b.Height()),
 		zap.Stringer("parentID", b.Parent()),
@@ -52,10 +53,10 @@ func (a *acceptor) BlueberryCommitBlock(b *blocks.BlueberryCommitBlock) error {
 	return a.commitBlock(b)
 }
 
-func (a *acceptor) BlueberryProposalBlock(b *blocks.BlueberryProposalBlock) error {
+func (a *acceptor) BanffProposalBlock(b *blocks.BanffProposalBlock) error {
 	a.ctx.Log.Debug(
 		"accepting block",
-		zap.String("blockType", "blueberry proposal"),
+		zap.String("blockType", "banff proposal"),
 		zap.Stringer("blkID", b.ID()),
 		zap.Uint64("height", b.Height()),
 		zap.Stringer("parentID", b.Parent()),
@@ -65,10 +66,10 @@ func (a *acceptor) BlueberryProposalBlock(b *blocks.BlueberryProposalBlock) erro
 	return nil
 }
 
-func (a *acceptor) BlueberryStandardBlock(b *blocks.BlueberryStandardBlock) error {
+func (a *acceptor) BanffStandardBlock(b *blocks.BanffStandardBlock) error {
 	a.ctx.Log.Debug(
 		"accepting block",
-		zap.String("blockType", "blueberry standard"),
+		zap.String("blockType", "banff standard"),
 		zap.Stringer("blkID", b.ID()),
 		zap.Uint64("height", b.Height()),
 		zap.Stringer("parentID", b.Parent()),
@@ -179,7 +180,7 @@ func (a *acceptor) abortBlock(b blocks.Block) error {
 		return fmt.Errorf("%w: %s", state.ErrMissingParentState, parentID)
 	}
 
-	if a.bootstrapped.GetValue() {
+	if a.bootstrapped.Get() {
 		if parentState.initiallyPreferCommit {
 			a.metrics.MarkOptionVoteLost()
 		} else {
@@ -197,7 +198,7 @@ func (a *acceptor) commitBlock(b blocks.Block) error {
 		return fmt.Errorf("%w: %s", state.ErrMissingParentState, parentID)
 	}
 
-	if a.bootstrapped.GetValue() {
+	if a.bootstrapped.Get() {
 		if parentState.initiallyPreferCommit {
 			a.metrics.MarkOptionVoteWon()
 		} else {
